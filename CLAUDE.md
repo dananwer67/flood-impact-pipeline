@@ -22,10 +22,14 @@ just ends up with working code. Because of this:
 - Prefer simple, readable code over clever or highly optimized code at this stage.
 
 ## Current status
-Week 0 (terminal, git, venv, pip basics) is complete. Starting the "walking skeleton"
-now — a deliberately crude, fake end-to-end version of the pipeline (fake data ->
-fake LLM extraction -> fake scoring -> basic dashboard), built slowly, piece by piece.
-Real Stage 1 (actual data ingestion) comes after the skeleton runs end to end.
+Week 0 (terminal, git, venv, pip basics) is complete. The "walking skeleton" is also
+complete — a deliberately crude, fake end-to-end version of the pipeline (fake data ->
+fake LLM extraction -> fake scoring -> basic Streamlit dashboard), built and understood
+piece by piece, confirmed running end to end. Next up: real Stage 1 (actual data
+ingestion), starting with repo/Postgres/environment config and EM-DAT.
+
+Note: running the dashboard requires `PYTHONPATH` set to the project root so `src`
+imports resolve (e.g. `$env:PYTHONPATH = (Get-Location).Path` in PowerShell).
 
 ## Stack (introduced only as each piece is actually built, not all at once)
 - Python 3.11+, pandas
