@@ -102,6 +102,44 @@ remained inundated past the October 31 cutoff, a single fixed end date is not eq
 readings right at the window's end. This is noted as a real, minor limitation rather than
 treated as a fully solved edge case.
 
+## River discharge data: centroid coordinate problem (finding, not yet resolved)
+
+**What was tested:** before building the real river-discharge ingestion function, two
+real districts were tested individually against the Open-Meteo Flood API (GloFAS
+wrapper), using each district's geometric centroid (computed from its real GADM
+`geometry`) as the query coordinate — matching the same "verify on one real example
+before scaling" discipline used for the GADM boundary data.
+
+**Test 1 — Dadu** (centroid: 26.8277°N, 67.5510°E): returned discharge values peaking at
+~39 around 19-20 August 2022. Timing matched Dadu's known flood peak, but the magnitude
+is implausibly small for any Indus-connected waterway during this event.
+
+**Test 2 — Sukkur** (centroid: 27.5144°N, 69.2009°E): returned discharge values peaking
+at ~11.4 around 20 August 2022 — same suspicious pattern. This result matters more than
+Dadu's, because Sukkur is the site of the Sukkur Barrage, a major structure sitting
+directly on the Indus mainstem. A district whose entire geographic significance is the
+Indus running through it should not return near-zero discharge.
+
+**Diagnostic test — manually-placed coordinate:** querying the same date range at
+27.6994°N, 68.8492°E (Sukkur Barrage's actual location on the Indus, not the district
+centroid) returned values in the thousands (peaking ~13,600 m³/s in early July, staying
+elevated through August, second peak ~13,400 on 28 August) — the correct order of
+magnitude for the Indus during this event, and matching the real flood timeline.
+
+**Finding:** district administrative centroids are not reliable query coordinates for
+river discharge. GloFAS/Open-Meteo's 5km-resolution nearest-river matching, given a
+centroid, frequently locks onto a small local tributary or drainage line rather than the
+major river actually relevant to that district. This is a structural problem affecting
+all 138 districts, not an isolated edge case — confirmed by testing two independent
+districts and getting the same failure pattern, then confirming the fix (a correctly
+-placed coordinate) resolves it.
+
+**Status:** blocking issue for real river-discharge ingestion. Naive centroid-based
+querying cannot be used. Fix not yet decided — options being considered: (1) manually
+curated "river snap point" per district, (2) intersecting each district's geometry with
+a known river-line dataset to find an actual on-river coordinate programmatically.
+Decision and reasoning to be logged here once made.
+
 ## Country and event selection
 
 **Country chosen: Pakistan.** Selected after comparing Pakistan, Bangladesh, Philippines,
