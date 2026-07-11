@@ -9,6 +9,37 @@ Does LLM-extracted urgency scoring (from ReliefWeb/GDELT report text) improve di
 severity prediction over hazard data alone (river discharge, rainfall)? A negative result
 here is a legitimate, reportable finding — not a failure.
 
+## Validation strategy: why one event alone isn't sufficient proof
+
+An important distinction, worth being explicit about before more data is collected:
+
+**Within-event validation (Pakistan 2022 alone):** even a single flood event has real
+variation to split on — 138 districts across multiple provinces, and multiple weeks as
+the flood evolved (roughly June-October 2022). Spatial block CV (train on some provinces'
+districts, test on others) and temporal block CV (train on early weeks, test on later
+weeks) — both already specified in the project plan — can be applied within this one
+event. This is a legitimate, necessary test, but it is a **weaker** one: it only shows
+the model works within the specific conditions of this one flood (one river system, one
+set of reporting agencies, one season). A model could pass this test purely by learning
+quirks specific to Pakistan 2022, without having learned anything that generalizes.
+
+**Cross-event validation (the actual proof of generalization):** the rigorous test this
+project is ultimately built for is training on one or more events and testing on a
+**completely separate, held-out flood event the model has never seen** — ideally in a
+different country, with a different river system and different reporting agencies. This
+is why the project plan always specified multiple validation events (5-8, across
+Pakistan, Bangladesh, Philippines, etc.), not just one.
+
+**Decision:** Pakistan (2022 floods) is being built first and completely, end-to-end,
+because you cannot test generalization to a second country before the first one works at
+all. This is explicitly **phase one — "get the pipeline working correctly," not
+"prove the pipeline generalizes."** The genuine test of generalization comes once at
+least one additional, independent country/event (Bangladesh is the current leading
+candidate, given existing GloFAS tutorial precedent for a 2022 Bangladesh flood) is added
+and used as a true held-out test, never touched during development of the Pakistan
+pipeline. Until that second event exists, all results should be reported and interpreted
+as "the pipeline works on Pakistan 2022," not as a general claim about flood prediction.
+
 ## Country and event selection
 
 **Country chosen: Pakistan.** Selected after comparing Pakistan, Bangladesh, Philippines,
