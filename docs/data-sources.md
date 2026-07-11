@@ -27,6 +27,11 @@ Two realistic access paths, very different difficulty levels:
 **Recommendation:** start with Open-Meteo for the walking-skeleton-to-real-data transition
 (fast, zero setup). Move to EWDS/cdsapi later if more historical granularity is needed.
 
+**Time window and validation status:** see `docs/methodology.md` for the specific date
+range chosen for Pakistan 2022 data collection (1 June 2021 – 31 October 2022) and its
+reasoning, and for the status of verifying real values from this source against actual
+district coordinates (not yet completed as of the last methodology update).
+
 ### EM-DAT (historical disaster records)
 - Register (free, non-commercial use) at https://public.emdat.be/register
 - Download as .xlsx via the "Access Data" tab after login

@@ -40,6 +40,68 @@ and used as a true held-out test, never touched during development of the Pakist
 pipeline. Until that second event exists, all results should be reported and interpreted
 as "the pipeline works on Pakistan 2022," not as a general claim about flood prediction.
 
+## River discharge & rainfall data (river/rainfall data collection)
+
+**What is being extracted:** for each of the 138 real districts, for each week in the
+chosen time window, two structured numeric values:
+- **River discharge** — how much water is flowing through the nearest major river to
+  that district that week (from GloFAS, via the Open-Meteo Flood API)
+- **Rainfall** — total rainfall for that district/week (from CHIRPS, via Google Earth
+  Engine)
+
+**Sources chosen:**
+- **River discharge: Open-Meteo Flood API** (free, no registration) — a wrapper around
+  GloFAS data. Coordinates for each district are computed from the district's real GADM
+  `geometry` (a representative point, e.g. centroid).
+- **Rainfall: CHIRPS via Google Earth Engine** (free, requires one-time Earth Engine
+  registration — the same registration needed later for Prithvi/satellite imagery in
+  Stage 5, so no new platform to learn).
+
+Both were adopted as reasonable starting points based on general accessibility, not yet
+verified with the same rigor as GADM (no real values pulled and inspected yet). This
+verification is the immediate next step before building the full ingestion function —
+matching the same "open the file and look before trusting it" approach used for GADM.
+
+## Time window for hazard data collection
+
+**Why not flood-period-only:** if only flood-period data is collected, every row would
+represent a flooded district-week, giving the model no "calm" examples to contrast
+against — directly conflicting with the class-imbalance handling already specified in
+the project plan (downsampling assumes both flood and non-flood examples exist to sample
+from). A hazard reading (e.g. rainfall) is also only meaningful relative to a district's
+normal baseline, which requires seeing calm-period data for that same district.
+
+**Why not extending significantly past the flood's end:** humanitarian reporting
+(WASH interventions, displacement, rebuilding) typically continues well after hazard
+conditions (river discharge, rainfall) return to normal. Including an extended
+post-flood window risks weeks where hazard data looks calm but report text still reads
+as urgent — a contaminated, ambiguous signal that is neither a clean "flood" nor a clean
+"calm" example. This directly conflicts with wanting a clean contrast between the two
+classes. Pre-flood data does not have this problem, since it is unambiguously calm on
+both hazard data and report text.
+
+**Decision: pre-flood baseline + flood period only, no extended post-flood window.**
+
+**Real dates used, with sourcing:**
+- Flood onset: **14 June 2022** — consistently cited across sources (NDMA's own count,
+  Wikipedia, Britannica, multiple ReliefWeb/OCHA situation reports all anchor to
+  mid-June 2022 as when monsoon flooding began).
+- Flood period end: genuinely variable across sources — Wikipedia/Britannica say
+  "June to October 2022"; Center for Disaster Philanthropy extends to 18 November 2022;
+  one ReliefWeb report notes Dadu and Jamshoro specifically were expected to remain
+  partially inundated until the end of the year. **31 October 2022** was chosen as the
+  cutoff — within every source's cited range, while avoiding the extended recovery-period
+  window that risks report-text contamination described above.
+- **Final window: 1 June 2021 to 31 October 2022** (window start rounded to the 1st of
+  the month for cleaner date-range queries; two additional weeks of unambiguous
+  pre-flood baseline data, no material downside).
+
+**Known limitation, stated honestly:** since some districts (Dadu, Jamshoro specifically)
+remained inundated past the October 31 cutoff, a single fixed end date is not equally
+"clean" for every district — a small number of districts may still show elevated hazard
+readings right at the window's end. This is noted as a real, minor limitation rather than
+treated as a fully solved edge case.
+
 ## Country and event selection
 
 **Country chosen: Pakistan.** Selected after comparing Pakistan, Bangladesh, Philippines,
