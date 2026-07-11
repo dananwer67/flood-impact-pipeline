@@ -1,32 +1,17 @@
-import pandas as pd
+from src.ingestion.load_districts import load_pakistan_districts
 
 
 def load_sample_district_weeks():
-    data = [
-        {
-            "district_id": "PK-SD-DADU",
-            "district_name": "Dadu",
-            "week_number": 34,
-            "river_discharge": 1250.5,
-            "rainfall_72h": 180.2,
-            "report_text": "Heavy flooding reported along the Indus near Dadu; WASH and NFI interventions requested.",
-        },
-        {
-            "district_id": "PK-SD-SANGHAR",
-            "district_name": "Sanghar",
-            "week_number": 34,
-            "river_discharge": 980.3,
-            "rainfall_72h": 145.7,
-            "report_text": "Localized flooding in low-lying areas of Sanghar; several villages report crop damage.",
-        },
-        {
-            "district_id": "PK-PB-MULTAN",
-            "district_name": "Multan",
-            "week_number": 35,
-            "river_discharge": 610.8,
-            "rainfall_72h": 60.4,
-            "report_text": "River levels near Multan remain within normal range; no major impact reported this week.",
-        },
-    ]
+    districts = load_pakistan_districts()
 
-    return pd.DataFrame(data)
+    # FAKE PLACEHOLDER DATA below this point. district_id, district_name, and
+    # geometry above are real (from GADM, via load_pakistan_districts). We haven't
+    # built real hazard (GloFAS/CHIRPS) or text (ReliefWeb/GDELT) ingestion yet, so
+    # every district gets the same placeholder values for now. river_discharge is
+    # a non-zero constant so downstream max-based scaling doesn't divide by zero.
+    districts["week_number"] = 1
+    districts["river_discharge"] = 1.0
+    districts["rainfall_72h"] = 0.0
+    districts["report_text"] = "PLACEHOLDER - no real report text ingested yet."
+
+    return districts
