@@ -102,43 +102,120 @@ remained inundated past the October 31 cutoff, a single fixed end date is not eq
 readings right at the window's end. This is noted as a real, minor limitation rather than
 treated as a fully solved edge case.
 
-## River discharge data: centroid coordinate problem (finding, not yet resolved)
+## River discharge data: full coordinate-matching investigation
 
-**What was tested:** before building the real river-discharge ingestion function, two
-real districts were tested individually against the Open-Meteo Flood API (GloFAS
-wrapper), using each district's geometric centroid (computed from its real GADM
-`geometry`) as the query coordinate — matching the same "verify on one real example
-before scaling" discipline used for the GADM boundary data.
+This section documents the complete investigation into river-discharge query-point
+selection, from the initial centroid failure through to the decision to switch data
+sources. Written as a narrative log rather than a single conclusion, since the process
+of ruling out approaches is itself part of the project's methodology.
 
-**Test 1 — Dadu** (centroid: 26.8277°N, 67.5510°E): returned discharge values peaking at
-~39 around 19-20 August 2022. Timing matched Dadu's known flood peak, but the magnitude
-is implausibly small for any Indus-connected waterway during this event.
+### Phase 1: centroid failure (Dadu, Sukkur)
+District centroids (from GADM `geometry`) were tested as query coordinates against the
+Open-Meteo Flood API (a free GloFAS wrapper). Dadu's centroid returned discharge peaking
+at ~39 m³/s; Sukkur's centroid (despite Sukkur being the site of the Sukkur Barrage, a
+major Indus structure) returned only ~11.4 m³/s. A manually-placed coordinate directly
+on the Indus at Sukkur Barrage (27.6994°N, 68.8492°E) returned values in the thousands
+(peaking ~13,600 m³/s), confirming the *source* was reliable but the *centroid* was not
+a usable query coordinate — GloFAS/Open-Meteo's 5km-resolution nearest-river matching
+frequently locks onto a minor tributary near an administrative centroid rather than the
+major river relevant to the district.
 
-**Test 2 — Sukkur** (centroid: 27.5144°N, 69.2009°E): returned discharge values peaking
-at ~11.4 around 20 August 2022 — same suspicious pattern. This result matters more than
-Dadu's, because Sukkur is the site of the Sukkur Barrage, a major structure sitting
-directly on the Indus mainstem. A district whose entire geographic significance is the
-Indus running through it should not return near-zero discharge.
+### Phase 2: HydroRIVERS-based reach selection and point placement
+**Source adopted:** HydroRIVERS (HydroSHEDS/WWF), a free global river-network line
+dataset, intersected against each district's real GADM polygon (not a bounding box —
+an early bbox-based test overcounted reaches by ~3x, 91,462 vs. the true 31,769 within
+Pakistan's actual boundary).
 
-**Diagnostic test — manually-placed coordinate:** querying the same date range at
-27.6994°N, 68.8492°E (Sukkur Barrage's actual location on the Indus, not the district
-centroid) returned values in the thousands (peaking ~13,600 m³/s in early July, staying
-elevated through August, second peak ~13,400 on 28 August) — the correct order of
-magnitude for the Indus during this event, and matching the real flood timeline.
+**Selection attribute:** `DIS_AV_CMS` (modeled long-term average discharge) was chosen
+over `UPLAND_SKM` (drainage area) as the primary criterion for picking "the major river"
+among candidates intersecting a district, specifically because large arid catchments
+(common in Balochistan) can have large drainage area but negligible real flow —
+`UPLAND_SKM` would misrank these as major. Important caveat, resolved through discussion:
+`DIS_AV_CMS` carries a documented ~35% average error (per HydroRIVERS' own technical
+documentation), worse in arid/glacier-fed regions — but this error is used here only for
+*relative ranking* among candidates (which reach is biggest), not as an *absolute value*
+ingested into the model, and a systematic ~35% error is unlikely to flip an obviously
+major river against an obviously minor one. `UPLAND_SKM` was retained as a secondary
+cross-check rather than discarded. A second, Pakistan-specific caveat: `DIS_AV_CMS` is a
+*naturalized* flow estimate that does not model human water management — the Indus basin
+is one of the most heavily engineered river systems in the world (Indus Basin Irrigation
+System, extensive canal off-takes), which may explain why discharge appears to decline
+between the Punjab confluence and Sukkur in this dataset, though this is a plausible
+hypothesis, not confirmed — ordinary natural transmission losses in an arid basin are an
+equally consistent alternative explanation.
 
-**Finding:** district administrative centroids are not reliable query coordinates for
-river discharge. GloFAS/Open-Meteo's 5km-resolution nearest-river matching, given a
-centroid, frequently locks onto a small local tributary or drainage line rather than the
-major river actually relevant to that district. This is a structural problem affecting
-all 138 districts, not an isolated edge case — confirmed by testing two independent
-districts and getting the same failure pattern, then confirming the fix (a correctly
--placed coordinate) resolves it.
+**Point placement on the selected reach:** tested midpoint (`.interpolate(0.5)`), then
+both endpoints, then multi-point grid search along and around the reach. Results were
+inconsistent and reach-specific:
+- Sukkur: the reach's downstream endpoint (a junction node) gave a correct result;
+  interior points did not.
+- Dadu: no point along the selected reach or one reach further downstream gave a
+  correct result.
+- A full 138-district run (using highest-`DIS_AV_CMS` candidate reach at `ORD_FLOW`≤6,
+  both endpoints tested) found: 11 districts with no candidate reach at this threshold;
+  of the 127 tested, 79 (62%) had a plausible peak-to-average ratio (>0.5), 48 (38%)
+  showed the same near-zero failure pattern as Dadu.
+- **This 62% figure should not be read as a validated accuracy rate.** Only one district
+  (Sukkur) was independently verified against real-world ground truth at the time of
+  this run. A geographic/provincial cross-reference of the results suggested three
+  distinct sub-patterns rather than random noise: (a) some low ratios are legitimately
+  correct (minor hill-torrent districts in KP, glacier-fed upper Gilgit-Baltistan/AJK
+  districts, and districts where both HydroRIVERS and Open-Meteo agree on near-zero
+  flow); (b) a cluster of eastern Punjab low-ratio districts is plausibly explained by
+  the Indus Waters Treaty (which allocates the Ravi/Beas/Sutlej "Eastern rivers"
+  primarily to India — a naturalized discharge model would not know to account for this
+  diversion) — flagged as a plausible, not confirmed, hypothesis; (c) a genuine,
+  unexplained failure cluster along the Indus mainstem itself (Dadu, Thatta,
+  DeraIsmailKhan, Mianwali, Ghotki, NaushahroFiroz, NawabShah, RahimyarKhan) where the
+  query point was confirmed geometrically inside the correct district, on a correctly
+  major reach, and still returned near-zero.
 
-**Status:** blocking issue for real river-discharge ingestion. Naive centroid-based
-querying cannot be used. Fix not yet decided — options being considered: (1) manually
-curated "river snap point" per district, (2) intersecting each district's geometry with
-a known river-line dataset to find an actual on-river coordinate programmatically.
-Decision and reasoning to be logged here once made.
+**Grid-search follow-up on 5 ground-truthed districts** (Thatta, Multan, Quetta,
+Charsadda, JhalMagsi — each independently researched for real geography before testing):
+found a working point for Thatta and confirmed Quetta's "no candidate" result was a
+threshold artifact (a real, smaller river exists but falls below the `ORD_FLOW`≤6 cutoff),
+correctly re-interpreted JhalMagsi's extreme outlier ratio as a real signal mislabeled by
+poor reach-selection rather than noise, and left Multan fully unresolved (no point within
+5km along or around the selected reach showed any signal above ~1.7 m³/s). **A
+methodological gap was identified in this specific test**: unlike the Quetta grid (which
+was explicitly polygon-constrained), the river-following grid searches for Thatta and
+JhalMagsi were not checked against the district's own polygon boundary — Thatta's
+"winning" point returned a peak value identical to already-known-good values from the
+neighboring Hyderabad/Matiari district, raising the possibility the result reflects
+geographic bleed into a neighboring district rather than a genuine fix for Thatta itself.
+This was not resolved before the approach was superseded (see Phase 3).
+
+### Phase 3: decision to switch to native GloFAS data (current approach)
+**Root cause identified:** HydroRIVERS and Open-Meteo/GloFAS are two independently-built
+hydrography models (different source resolution, different organizations) that do not
+reliably agree on exact river location below ~5km precision. No amount of point-selection
+logic applied to HydroRIVERS' geometry can fully fix a disagreement between two separate
+models of where a river actually is.
+
+**How real operational systems avoid this problem:** researched Google Flood Hub as a
+reference point. It anchors to real, physical river gauge locations ("target gauges")
+rather than computing coordinates from administrative boundaries, and uses trained
+LSTM models (published in Nature) to infer conditions at ungauged locations from
+patterns learned at gauged ones — a fundamentally different, training-based strategy
+requiring institutional data access and research infrastructure beyond this project's
+scope. This did not provide a directly usable technique, but confirmed the underlying
+problem (coordinate-to-river matching for hydrological data) is a genuine, actively
+researched difficulty in this field, not a gap in project execution.
+
+**Decision:** switch from the third-party HydroRIVERS dataset to GloFAS's own natively
+published ancillary data (upstream area grid, and/or GloFAS's own defined "reporting
+points" for major river sections with upstream area >1,000 km²), accessed via the
+official Copernicus Early Warning Data Store (EWDS), rather than the Open-Meteo wrapper.
+Rationale: this uses GloFAS's own internal definition of river geometry for both
+locating and querying discharge, eliminating the cross-model disagreement at its root
+rather than continuing to work around it with a third-party dataset. Cost: requires EWDS
+registration and the `cdsapi` package/NetCDF handling, a meaningfully larger technical
+lift than the Open-Meteo wrapper — accepted as justified given it targets the actual
+root cause rather than another symptom.
+
+**Status: in progress.** EWDS account registration underway. Next validation step planned:
+re-test Sukkur (known-good) and Multan (confirmed unresolved failure) against
+GloFAS-native coordinates before scaling to all 138 districts.
 
 ## Country and event selection
 

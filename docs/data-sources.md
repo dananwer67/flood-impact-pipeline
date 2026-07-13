@@ -24,13 +24,23 @@ Two realistic access paths, very different difficulty levels:
   Datasets page: https://ewds.climate.copernicus.eu/datasets
   Tutorial adaptable to our use case: https://ecmwf-projects.github.io/copernicus-training-c3s/glofas-bangladesh-floods.html
 
-**Recommendation:** start with Open-Meteo for the walking-skeleton-to-real-data transition
-(fast, zero setup). Move to EWDS/cdsapi later if more historical granularity is needed.
+**Recommendation, superseded:** Open-Meteo was originally recommended for the
+walking-skeleton-to-real-data transition (fast, zero setup). Extensive testing (see
+`docs/methodology.md`, "River discharge data: full coordinate-matching investigation")
+found that Open-Meteo's underlying GloFAS grid, when queried using coordinates derived
+from a third-party river-geometry dataset (HydroRIVERS), frequently disagrees with that
+dataset at sub-5km precision, producing unreliable results for a meaningful fraction of
+districts. **Current approach: use the official Copernicus Early Warning Data Store
+(EWDS)** instead, specifically GloFAS's own natively published ancillary data (upstream
+area grid, and/or GloFAS's own defined "reporting points" for major river sections) —
+this uses GloFAS's own internal river geometry for both locating and querying discharge,
+rather than a third party's independently-built approximation of it. Requires EWDS
+registration and the `cdsapi` Python package; status of this transition is tracked in
+`docs/methodology.md`.
 
 **Time window and validation status:** see `docs/methodology.md` for the specific date
-range chosen for Pakistan 2022 data collection (1 June 2021 – 31 October 2022) and its
-reasoning, and for the status of verifying real values from this source against actual
-district coordinates (not yet completed as of the last methodology update).
+range chosen for Pakistan 2022 data collection (1 June 2021 – 31 October 2022) and the
+full record of source validation, including the coordinate-matching investigation above.
 
 ### EM-DAT (historical disaster records)
 - Register (free, non-commercial use) at https://public.emdat.be/register
@@ -113,6 +123,18 @@ district coordinates (not yet completed as of the last methodology update).
 - Input requirement to plan for: expects Harmonized Landsat Sentinel-2 (HLS) imagery,
   specific spectral bands — sourcing/preparing this correctly is real work, budgeted
   into Stage 5, Weeks 15-16
+
+### River network geometry: HydroRIVERS (used for diagnosis, not primary method)
+- Free, global river-network line dataset (HydroSHEDS/WWF), downloaded for the Asia
+  region (`gadm.hydrosheds.org` product page)
+- Used extensively during the river-discharge coordinate-matching investigation (see
+  `docs/methodology.md`) to test district-to-river matching. Confirmed reliable and
+  internally consistent as a dataset, but ultimately not adopted as the primary method
+  for selecting query coordinates, since it is independently built from GloFAS and does
+  not reliably agree with it at sub-5km precision. Retained as useful reference/
+  cross-check data (e.g. `UPLAND_SKM` as a secondary sanity check), not as the primary
+  coordinate source going forward.
+- Technical documentation saved at `docs/hydrorivers-technical-documentation.pdf`
 
 ### District boundaries: GADM
 - Free download by country: https://gadm.org/download_country.html
