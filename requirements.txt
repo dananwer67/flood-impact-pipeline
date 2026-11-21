@@ -1,3 +1,6 @@
 pandas
 streamlit
 geopandas
+sqlalchemy
+psycopg[binary]
+python-dotenv
