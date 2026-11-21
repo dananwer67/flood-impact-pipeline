@@ -183,7 +183,16 @@ JhalMagsi were not checked against the district's own polygon boundary — Thatt
 "winning" point returned a peak value identical to already-known-good values from the
 neighboring Hyderabad/Matiari district, raising the possibility the result reflects
 geographic bleed into a neighboring district rather than a genuine fix for Thatta itself.
-This was not resolved before the approach was superseded (see Phase 3).
+
+**Gap resolved:** both districts were re-tested with a proper polygon-constrained grid
+(same method as Quetta's). Thatta: 548 of 656 points strictly inside its own polygon
+showed peak values matching the original result (~20,369–20,416 m³/s, ratio ~2.48–2.50),
+confirming this is a genuine, broad, internally consistent signal within Thatta itself,
+not bleed from Hyderabad/Matiari. JhalMagsi: 143 of 145 points strictly inside its own
+polygon showed nonzero signal, with the top cluster (baseline ~877–900, peak up to
+~7,294) confirmed at essentially the same location as the original finding, plus a second
+distinct high-ratio cluster elsewhere in the district. Both results stand on their own
+within the correct district boundary.
 
 ### Phase 3: decision to switch to native GloFAS data (current approach)
 **Root cause identified:** HydroRIVERS and Open-Meteo/GloFAS are two independently-built
